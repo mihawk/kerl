@@ -1,5 +1,5 @@
 #! /bin/sh
-
+#set -x
 # Copyright (c) 2011, 2012 Spawngrid, Inc
 # Copyright (c) 2011 Evax Software <contact(at)evax(dot)org>
 #
@@ -251,36 +251,51 @@ do_git_build()
     mkdir -p "$KERL_GIT_DIR"
     cd "$KERL_GIT_DIR"
     echo "Checking Erlang/OTP git repository from $1..."
-    if [ ! -d "$GIT" ]; then
-        git clone -q --mirror "$1" "$GIT" > /dev/null 2>&1
+    if [ -d "$1" ]; then
+            echo "Build from $1"
+            mkdir -p "$GIT"
+            echo $GIT
+            #cp -rP "$1" "$KERL_GIT_DIR/$GIT" > /dev/null 2>&1
+            cd "$GIT"
+    else
+        if [ ! -d "$GIT" ]; then
+            git clone -q --mirror "$1" "$GIT" > /dev/null 2>&1
+            if [ $? -ne 0 ]; then
+                echo "Error mirroring remote git repository"
+                exit 1
+            fi
+        fi
+        cd "$GIT"
+        git remote update --prune > /dev/null 2>&1
         if [ $? -ne 0 ]; then
-            echo "Error mirroring remote git repository"
+            echo "Error updating remote git repository"
             exit 1
         fi
     fi
-    cd "$GIT"
-    git remote update --prune > /dev/null 2>&1
-    if [ $? -ne 0 ]; then
-        echo "Error updating remote git repository"
-        exit 1
-    fi
-
+    echo "$KERL_BUILD_DIR/$3"
     rm -Rf "$KERL_BUILD_DIR/$3"
     mkdir -p "$KERL_BUILD_DIR/$3"
     cd "$KERL_BUILD_DIR/$3"
-    git clone -l "$KERL_GIT_DIR/$GIT" otp_src_git > /dev/null 2>&1
-    if [ $? -ne 0 ]; then
-        echo "Error cloning local git repository"
-        exit 1
+    if [ -d "$1" ]; then
+        echo "PWD $PWD"
+        echo "$KERL_GIT_DIR/$GIT"
+        cp -RP "$1" otp_src_git
+    else
+        git clone -l "$KERL_GIT_DIR/$GIT" otp_src_git > /dev/null 2>&1
+        if [ $? -ne 0 ]; then
+            echo "Error cloning local git repository"
+            exit 1
+        fi
     fi
     cd otp_src_git
+    echo $2
     git checkout $2 > /dev/null 2>&1
     if [ $? -ne 0 ]; then
         git checkout -b $2 $2 > /dev/null 2>&1
     fi
     if [ $? -ne 0 ]; then
         echo "Couldn't checkout specified version"
-        rm -Rf "$KERL_BUILD_DIR/$3"
+        #rm -Rf "$KERL_BUILD_DIR/$3"
         exit 1
     fi
     if [ ! -x otp_build ]; then
